@@ -729,27 +729,49 @@ public class NeuralNetwork {
 
 // MARK: NeuralNetworkHyper
 public struct NeuralNetworkHyper: Codable {
-    var hidden: [NeuralNetworkHidden]
-    var epochs: Int
-    var batches: Int
-    var lr: Double
-    var lm: Double
-    var activH: NeuralNetworkActivation
-    var activO: NeuralNetworkActivation
-    var loss: NeuralNetworkLoss
+    public var hidden: [NeuralNetworkHidden]
+    public var epochs: Int
+    public var batches: Int
+    public var lr: Double
+    public var lm: Double
+    public var activH: NeuralNetworkActivation
+    public var activO: NeuralNetworkActivation
+    public var loss: NeuralNetworkLoss
+    
+    public init(hidden: [NeuralNetworkHidden], epochs: Int, batches: Int, lr: Double, lm: Double, activH: NeuralNetworkActivation, activO: NeuralNetworkActivation, loss: NeuralNetworkLoss) {
+        self.hidden = hidden
+        self.epochs = epochs
+        self.batches = batches
+        self.lr = lr
+        self.lm = lm
+        self.activH = activH
+        self.activO = activO
+        self.loss = loss
+    }
 }
 
 // MARK: NeuralNetworkHiddenLayer
 public struct NeuralNetworkHidden: Codable {
-    let units: Int
+    public let units: Int
+    
+    public init(units: Int) {
+        self.units = units
+    }
 }
 
 // MARK: NeuralNetworkInfo
 public struct NeuralNetworkInfo: Codable {
-    let data: [[Double]]
-    let labels: [[Double]]
-    let hyper: NeuralNetworkHyper
-    let THETA: [Matrix]
+    public let data: [[Double]]
+    public let labels: [[Double]]
+    public let hyper: NeuralNetworkHyper
+    public let THETA: [Matrix]
+    
+    public init(data: [[Double]], labels: [[Double]], hyper: NeuralNetworkHyper, THETA: [Matrix]) {
+        self.data = data
+        self.labels = labels
+        self.hyper = hyper
+        self.THETA = THETA
+    }
 }
 
 // MARK: NeuralNetworkActivation
