@@ -13,23 +13,24 @@ import Accelerate
 public typealias Vector = Matrix
 
 // MARK: NeuralNetwork
-public class NeuralNetwork {
+public class NeuralNetwork: Saveable {
+    
+    public typealias Info = NeuralNetworkInfo
+    public static let keysTag = "NeuralNetwork.keys"
+    
+    public private(set) var data: [[Double]]!
+    public private(set) var labels: [[Double]]!
+    public private(set) var hyper: NeuralNetworkHyper!
+    public private(set) var THETA: [Matrix]?
     
     private var X: Matrix!
     private var y: Matrix!
-    private var hyper: NeuralNetworkHyper!
-    private var THETA: [Matrix]?
     private var costs: [Double]!
     
     private var training: Bool = false
     private var ready = false
     
-    private var data: [[Double]]!
-    private var labels: [[Double]]!
-    
     private let process = Process(type: .normalize)
-    
-    private static let keysTag = "NeuralNetwork.keys"
     
     // MARK: Init
     public init(data: [[Double]], labels: [[Double]], hyper: NeuralNetworkHyper) {
@@ -37,9 +38,9 @@ public class NeuralNetwork {
         setup(data: data, labels: labels, hyper: hyper)
     }
     
-    public init(key: String) {
+    public init(info: Info) {
         // Init all necessary params
-        load(key: key)
+        setup(info: info)
     }
     
     public init() {}
@@ -69,33 +70,26 @@ public class NeuralNetwork {
         self.ready = true
     }
     
-    // MARK: Load
-    public func load(key: String) {
-        // Get our json data for this key's neural network
-        do {
-            let info = try JSONDecoder().decode(NeuralNetworkInfo.self, from: UserDefaults.standard.data(forKey: key) ?? Data())
-            // Store raw
-            self.data = info.data
-            self.labels = info.labels
-            // Save hyper params
-            self.hyper = info.hyper
-            // Use this to create X
-            self.X = process.fit(X: Matrix(data))
-            // Reshape X to batches
-            self.X = self.X[rows: 0..<(X.rows / info.hyper.batches * info.hyper.batches)]
-            // Use this to create y
-            self.y = Matrix(labels)
-            // Reshape y to batches
-            self.y = self.y[rows: 0..<(y.rows / info.hyper.batches * info.hyper.batches)]
-            // Set up empty costs
-            self.costs = []
-            // Set up THETA
-            self.THETA = info.THETA
-            // Network is ready to be trained
-            self.ready = true
-        } catch {
-            print("NeuralNetwork.load: Unable to find a saved network for this key")
-        }
+    public func setup(info: Info) {
+        // Store raw
+        self.data = info.data
+        self.labels = info.labels
+        // Save hyper params
+        self.hyper = info.hyper
+        // Use this to create X
+        self.X = process.fit(X: Matrix(data))
+        // Reshape X to batches
+        self.X = self.X[rows: 0..<(X.rows / info.hyper.batches * info.hyper.batches)]
+        // Use this to create y
+        self.y = Matrix(labels)
+        // Reshape y to batches
+        self.y = self.y[rows: 0..<(y.rows / info.hyper.batches * info.hyper.batches)]
+        // Set up empty costs
+        self.costs = []
+        // Set up THETA
+        self.THETA = info.THETA
+        // Network is ready to be trained
+        self.ready = true
     }
     
     // MARK: Train
@@ -138,67 +132,6 @@ public class NeuralNetwork {
         let h = forward(a: &a, z: &z, THETA: THETA, x: process.fit(x: x), L: hyper.hidden.count + 2)
         // Return predicted class vector
         return h.grid
-    }
-    
-    // MARK: Save
-    public func save(key: String) {
-        // Make sure the network was trained before saving
-        guard let THETA = THETA, ready else {
-            print("NeuralNetwork.save: Network must be trained at least once before saving")
-            return
-        }
-        // Set up struct containing NeuralNetwork information
-        let info = NeuralNetworkInfo(data: data, labels: labels, hyper: hyper, THETA: THETA)
-        // Attempt to encode
-        do {
-            // Convert neural net info to json and save
-            UserDefaults.standard.setValue(try JSONEncoder().encode(info), forKey: key)
-            
-            // Save the key as well, first get previously saved keys
-            var keys = UserDefaults.standard.array(forKey: NeuralNetwork.keysTag) as? [String] ?? [String]()
-            // If this key is already saved, do nothing
-            if !keys.contains(key) {
-                // This key is not saved so add it and save the keys again
-                keys.append(key)
-                // Now convert keys to json and save
-                UserDefaults.standard.setValue(keys, forKey: NeuralNetwork.keysTag)
-            }
-            print("NeuralNetwork.save: Successfully saved network with key \(key)")
-        } catch {
-            // Unable to encode either NeuralNet or keys, either way confirm we have cleared the k/v pair in UserDefaults for neural net
-            UserDefaults.standard.removeObject(forKey: key)
-            print("NeuralNetwork.save: Unable to save neural network")
-        }
-    }
-    
-    // MARK: Saved
-    public static func keys() -> [String] {
-        // Get the saved keys from UserDefaults
-        let keys = UserDefaults.standard.array(forKey: NeuralNetwork.keysTag) as? [String] ?? [String]()
-        return keys
-    }
-    
-    // MARK: Remove Saved
-    public static func clear() {
-        // Remove stored infos first
-        for key in NeuralNetwork.keys() {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-        // Now remove keys
-        UserDefaults.standard.removeObject(forKey: NeuralNetwork.keysTag)
-        print("NeuralNetwork.clear: Cleared all stored neural networks")
-    }
-    
-    public static func clear(key: String) {
-        // Remove stored info first
-        UserDefaults.standard.removeObject(forKey: key)
-        // Get keys
-        var keys = UserDefaults.standard.array(forKey: NeuralNetwork.keysTag) as? [String] ?? [String]()
-        // Remove the key from our keys
-        keys.removeAll(where: { $0 == key })
-        // Resave the keys
-        UserDefaults.standard.setValue(keys, forKey: NeuralNetwork.keysTag)
-        print("NeuralNetwork.clear: Cleared neural network for key \(key)")
     }
     
     // MARK: Diagnostic
@@ -752,7 +685,7 @@ public struct NeuralNetworkHyper: Codable {
 
 // MARK: NeuralNetworkHiddenLayer
 public struct NeuralNetworkHidden: Codable {
-    public let units: Int
+    public var units: Int
     
     public init(units: Int) {
         self.units = units
@@ -761,12 +694,12 @@ public struct NeuralNetworkHidden: Codable {
 
 // MARK: NeuralNetworkInfo
 public struct NeuralNetworkInfo: Codable {
-    public let data: [[Double]]
-    public let labels: [[Double]]
-    public let hyper: NeuralNetworkHyper
-    public let THETA: [Matrix]
+    public var data: [[Double]]
+    public var labels: [[Double]]
+    public var hyper: NeuralNetworkHyper
+    public var THETA: [Matrix]?
     
-    public init(data: [[Double]], labels: [[Double]], hyper: NeuralNetworkHyper, THETA: [Matrix]) {
+    public init(data: [[Double]], labels: [[Double]], hyper: NeuralNetworkHyper, THETA: [Matrix]?) {
         self.data = data
         self.labels = labels
         self.hyper = hyper
