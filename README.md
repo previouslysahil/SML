@@ -2,6 +2,8 @@
 
 Machine Learning package currenlty in development. I'm a student and still learning so there maybe be bugs here an there as I update this package!
 
+Note: It is STRONGLY recommended to use the RELEASE BUILD CONFIG whenever running code using this package to optimize performance.
+
 Copyright (c) 2021 Sahil Srivastava
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

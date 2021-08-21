@@ -44,11 +44,11 @@ public class PCA {
             // Find the variance error for this subset
             K[i].val = 1 - (sum_k / sum_m)
         }
-        print("PrincipleComponentAnalysis.fit: All ks \(K)")
+        print("PCA.fit: All ks \(K)")
         // See if user chose a K
         if let k = k {
             precondition(k > 0 && k <= U.count, "Defined k is not acceptable for reduction of matrix X")
-            print("PrincipleComponentAnalysis.fit: Chosen k \(k)")
+            print("PCA.fit: Chosen k \(k)")
             // Get our eigenspaces
             let Ureduce = U[columns: 0...k - 1]
             self.Ureduce = Ureduce
@@ -58,7 +58,7 @@ public class PCA {
         } else {
             // Find our k given smallest variance
             let k = K.first(where: { $0.val < 0.01 })!
-            print("PrincipleComponentAnalysis.fit: Chosen k \(k)")
+            print("PCA.fit: Chosen k \(k)")
             // Get our eigenspaces
             let Ureduce = U[columns: 0...k.index]
             self.Ureduce = Ureduce
