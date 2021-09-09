@@ -13,7 +13,7 @@ import Accelerate
 public typealias Vector = Matrix
 
 // MARK: NeuralNetwork
-public class NeuralNetwork: Saveable {
+public class NeuralNetwork: Saveable, Equatable {
     
     public typealias Info = NeuralNetworkInfo
     public static let keysTag = "NeuralNetwork.keys"
@@ -45,8 +45,19 @@ public class NeuralNetwork: Saveable {
     
     public init() {}
     
+    // MARK: Equatable
+    public static func == (lhs: NeuralNetwork, rhs: NeuralNetwork) -> Bool {
+        return lhs.data == rhs.data && lhs.labels == rhs.labels && lhs.hyper == rhs.hyper && lhs.THETA == rhs.THETA
+    }
+    
     // MARK: Setup
     public func setup(data: [[Double]], labels: [[Double]], hyper: NeuralNetworkHyper) {
+        // Make sure we have data and labels
+        precondition(!data.isEmpty && !labels.isEmpty, "NeuralNetwork.setup: No data or labels passed to network")
+        // Make sure that X and y have the same number of training examples AKA rows
+        precondition(data.count == labels.count, "NeuralNetwork.setup: Data and labels have unequal number of training examples")
+        // If we have hidden layers make sure each layers has one or more units
+        precondition(hyper.hidden.allSatisfy { $0.units >= 1 }, "NeuralNetwork.setup: One or more hidden layer has 0 units")
         // Store raw
         self.data = data
         self.labels = labels
@@ -62,15 +73,17 @@ public class NeuralNetwork: Saveable {
         self.y = self.y[rows: 0..<(y.rows / hyper.batches * hyper.batches)]
         // Set up empty costs
         self.costs = []
-        // Make sure that X and y have the same number of training examples AKA rows
-        precondition(X.rows == y.rows, "NeuralNetwork.setup: Data and labels have unequal number of training examples")
-        // If we have hidden layers make sure each layers has one or more units
-        precondition(hyper.hidden.allSatisfy { $0.units >= 1 }, "NeuralNetwork.setup: One or more hidden layer has 0 units")
         // Network is ready to be trained
         self.ready = true
     }
     
     public func setup(info: Info) {
+        // Make sure we have data and labels
+        precondition(!info.data.isEmpty && !info.labels.isEmpty, "NeuralNetwork.setup: No data or labels passed to network")
+        // Make sure that X and y have the same number of training examples AKA rows
+        precondition(info.data.count == info.labels.count, "NeuralNetwork.setup: Data and labels have unequal number of training examples")
+        // If we have hidden layers make sure each layers has one or more units
+        precondition(info.hyper.hidden.allSatisfy { $0.units >= 1 }, "NeuralNetwork.setup: One or more hidden layer has 0 units")
         // Store raw
         self.data = info.data
         self.labels = info.labels
@@ -722,4 +735,200 @@ public enum NeuralNetworkActivation: Int, Codable {
 public enum NeuralNetworkLoss: Int, Codable {
     case CrossEntropy
     case MSE
+}
+
+// MARK: NeuralNetworkFlattenedData
+public struct NeuralNetworkFlattenedData: Codable {
+    
+    public var data: [Double]
+    public var d2D: Int
+    public var d1D: Int
+    
+    public init(data: [[Double]]) {
+        self.data = data.flatMap { $0 }
+        self.d2D = data.count
+        self.d1D = data.first?.count ?? 0
+    }
+    
+    public init(data: [Double], d2D: Int, d1D: Int) {
+        self.data = data
+        self.d2D = d2D
+        self.d1D = d1D
+    }
+}
+
+// MARK: NeuralNetworkFlattenedLabels
+public struct NeuralNetworkFlattenedLabels: Codable {
+    
+    public var labels: [Double]
+    public var l2D: Int
+    public var l1D: Int
+    
+    public init(labels: [[Double]]) {
+        self.labels = labels.flatMap { $0 }
+        self.l2D = labels.count
+        self.l1D = labels.first?.count ?? 0
+    }
+    
+    public init(labels: [Double], l2D: Int, l1D: Int) {
+        self.labels = labels
+        self.l2D = l2D
+        self.l1D = l1D
+    }
+}
+
+// MARK: NeuralNetworkFlattenedHyper
+public struct NeuralNetworkFlattenedHyper: Codable {
+    
+    public var hidden: [Int]
+    public var epochs: Int
+    public var batches: Int
+    public var lr: Double
+    public var lm: Double
+    public var activH: NeuralNetworkActivation
+    public var activO: NeuralNetworkActivation
+    public var loss: NeuralNetworkLoss
+    
+    public init(hyper: NeuralNetworkHyper) {
+        // Unwrap our hyper params from Hyper struct
+        self.hidden = hyper.hidden.map { $0.units }
+        self.epochs = hyper.epochs
+        self.batches = hyper.batches
+        self.lr = hyper.lr
+        self.lm = hyper.lm
+        self.activH = hyper.activH
+        self.activO = hyper.activO
+        self.loss = hyper.loss
+    }
+    
+    public init(hidden: [Int], epochs: Int, batches: Int, lr: Double, lm: Double, activH: NeuralNetworkActivation, activO: NeuralNetworkActivation, loss: NeuralNetworkLoss) {
+        self.hidden = hidden
+        self.epochs = epochs
+        self.batches = batches
+        self.lr = lr
+        self.lm = lm
+        self.activH =  activH
+        self.activO = activO
+        self.loss = loss
+    }
+}
+
+// MARK: NeuralNetworkFlattenedTHETA
+public struct NeuralNetworkFlattenedTHETA: Codable {
+    
+    public var THETA: [String]
+    
+    public init(THETA: [Matrix]?) {
+        guard let THETA = THETA else {
+            self.THETA = []
+            return
+        }
+        self.THETA = []
+        for THETA_l in THETA {
+            // Flatten all data necessary for a matrix
+            self.THETA.append("START")
+            self.THETA.append("\(THETA_l.rows)")
+            self.THETA.append("\(THETA_l.columns)")
+            for val in THETA_l.grid {
+                self.THETA.append("\(val)")
+            }
+            self.THETA.append("END")
+        }
+    }
+    
+    public init(THETA: [String]) {
+        self.THETA = THETA
+    }
+}
+
+// MARK: NeuralNetworkFlattened
+public struct NeuralNetworkFlattened: Codable {
+    
+    public var data: NeuralNetworkFlattenedData
+    public var labels: NeuralNetworkFlattenedLabels
+    
+    public var hyper: NeuralNetworkFlattenedHyper
+    
+    public var THETA: NeuralNetworkFlattenedTHETA
+    
+    public init(data: [[Double]], labels: [[Double]], hyper: NeuralNetworkHyper, THETA: [Matrix]?) {
+        // Flatten our arrays
+        self.data = NeuralNetworkFlattenedData(data: data)
+        self.labels = NeuralNetworkFlattenedLabels(labels: labels)
+        // Unwrap our hyper params from Hyper struct
+        self.hyper = NeuralNetworkFlattenedHyper(hyper: hyper)
+        // Unwrap our THETA for special flattening
+        self.THETA = NeuralNetworkFlattenedTHETA(THETA: THETA)
+    }
+    
+    public init(data: NeuralNetworkFlattenedData, labels: NeuralNetworkFlattenedLabels, hyper: NeuralNetworkFlattenedHyper, THETA: NeuralNetworkFlattenedTHETA) {
+        self.data = data
+        self.labels = labels
+        self.hyper = hyper
+        self.THETA = THETA
+    }
+    
+    public func remake() -> NeuralNetwork {
+        var iterData = self.data.data.makeIterator()
+        // This is basically just a double nested for loop with cleaner syntax
+        let data = Array(repeating: Array(repeating: 0, count: self.data.d1D), count: self.data.d2D).map {
+            // Iterate to our next element mapping it over the empty data
+            $0.compactMap { _ in iterData.next() }
+        }
+        
+        var iterLabels = self.labels.labels.makeIterator()
+        // This is basically just a double nested for loop with cleaner syntax
+        let labels = Array(repeating: Array(repeating: 0, count: self.labels.l1D), count: self.labels.l2D).map {
+            // Iterate to our next element mapping it over the empty labels
+            $0.compactMap { _ in iterLabels.next() }
+        }
+        
+        // Set up all of our hyper params
+        let hidden = self.hyper.hidden.map { NeuralNetworkHidden(units: $0) }
+        let epochs = self.hyper.epochs
+        let batches = self.hyper.batches
+        let lr = self.hyper.lr
+        let lm = self.hyper.lm
+        let activH = self.hyper.activH
+        let activO = self.hyper.activO
+        let loss = self.hyper.loss
+        
+        // Make empty array of THETAs
+        var THETA: [Matrix] = []
+        // Set up a struct like representation to decode each THETA layer
+        var rows: Int? = nil
+        var columns: Int? = nil
+        var grid: [Double] = []
+        // Increment
+        var i = 0
+        while i < self.THETA.THETA.count {
+            if self.THETA.THETA[i] == "START" {
+                // Set up our rows and columns
+                rows = Int(self.THETA.THETA[i+1])!
+                columns = Int(self.THETA.THETA[i+2])!
+                // Increment to next element to decode over the rows and columns
+                i += 3
+            } else if self.THETA.THETA[i] == "END" {
+                // Make our THETA layer
+                let THETA_l = Matrix(rows: rows!, columns: columns!, grid: grid)
+                THETA.append(THETA_l)
+                // Reset our struct like representation for the next layer
+                rows = nil
+                columns = nil
+                grid = []
+                // Increment to next element to decode
+                i += 1
+            } else {
+                // Add our grid data for this THETA layer
+                grid.append(Double(self.THETA.THETA[i])!)
+                // Increment to next element to decode
+                i += 1
+            }
+        }
+        // Construct hyper params and info then return our neural network
+        let hyper = NeuralNetworkHyper(hidden: hidden, epochs: epochs, batches: batches, lr: lr, lm: lm, activH: activH, activO: activO, loss: loss)
+        let info = NeuralNetworkInfo(data: data, labels: labels, hyper: hyper, THETA: THETA.isEmpty ? nil : THETA)
+        // Neural Network cannot be constructed when data is empty
+        return NeuralNetwork(info: info)
+    }
 }

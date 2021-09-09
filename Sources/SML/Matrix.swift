@@ -63,7 +63,7 @@
 import Foundation
 import Accelerate
 
-public struct Matrix: Codable {
+public struct Matrix: Codable, Equatable {
     public let rows: Int
     public let columns: Int
     public var grid: [Double]
