@@ -67,6 +67,12 @@ public struct Matrix: Codable {
     public let rows: Int
     public let columns: Int
     public var grid: [Double]
+    
+    public init(rows: Int, columns: Int, grid: [Double]) {
+        self.rows = rows
+        self.columns = columns
+        self.grid = grid
+    }
 }
 
 // MARK: - Creating matrices
