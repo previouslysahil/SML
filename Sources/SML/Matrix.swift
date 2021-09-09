@@ -66,7 +66,7 @@ import Accelerate
 public struct Matrix: Codable {
     public let rows: Int
     public let columns: Int
-    var grid: [Double]
+    public var grid: [Double]
 }
 
 // MARK: - Creating matrices
