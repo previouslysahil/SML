@@ -661,7 +661,7 @@ public class NeuralNetwork: Saveable {
 }
 
 // MARK: NeuralNetworkHyper
-public struct NeuralNetworkHyper: Codable {
+public struct NeuralNetworkHyper: Codable, Equatable {
     public var hidden: [NeuralNetworkHidden]
     public var epochs: Int
     public var batches: Int
@@ -680,6 +680,10 @@ public struct NeuralNetworkHyper: Codable {
         self.activH = activH
         self.activO = activO
         self.loss = loss
+    }
+    
+    public static func == (lhs: NeuralNetworkHyper, rhs: NeuralNetworkHyper) -> Bool {
+        (lhs.hidden.map { $0.units } == rhs.hidden.map { $0.units } && lhs.epochs == rhs.epochs && lhs.batches == rhs.batches && lhs.lr == rhs.lr && lhs.lm == rhs.lm && lhs.activH == rhs.activH && lhs.activO == rhs.activO && lhs.loss == rhs.loss)
     }
 }
 
